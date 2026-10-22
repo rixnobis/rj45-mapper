@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "rj45-mapper")(type "KiCad")(uri "${KIPRJMOD}/rj45-mapper.pretty")(options "")(descr "local"))
+)

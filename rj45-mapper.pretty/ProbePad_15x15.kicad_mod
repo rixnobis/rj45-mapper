@@ -1,0 +1,23 @@
+(footprint "ProbePad_15x15"
+	(version 20240108)
+	(generator "pcbnew")
+	(layer "F.Cu")
+	(descr "15 x 15 mm exposed-copper probe pad, one SMD pad on F.Cu, mask opened")
+	(attr exclude_from_pos_files exclude_from_bom allow_missing_courtyard)
+	(property "Reference" "REF**"
+		(at 0 -9 0)
+		(layer "F.SilkS")
+		(effects (font (size 1 1) (thickness 0.15)))
+	)
+	(property "Value" "ProbePad_15x15"
+		(at 0 9 0)
+		(layer "F.Fab")
+		(hide yes)
+		(effects (font (size 1 1) (thickness 0.15)))
+	)
+	(pad "1" smd rect
+		(at 0 0)
+		(size 15 15)
+		(layers "F.Cu" "F.Mask")
+	)
+)
