@@ -6,7 +6,7 @@
 // Every component dimension below was measured from that STL (see case/README.md),
 // not from a datasheet.
 //
-// part = "base" | "lid" | "assembly" | "section_jack" | "section_usb" | "fit_base" | "fit_lid"
+// part = "base" | "lid" | "assembly" | "assembly_closed" | "section_jack" | "section_usb" | "fit_base" | "fit_lid"
 part = "assembly";
 
 $fn = 48;
@@ -17,15 +17,16 @@ FLOOR = 2.0;
 STANDOFF = 5.0;                      // floor to board bottom; clears THT pin tails
 Z_BB = FLOOR + STANDOFF;             // board bottom
 Z_BT = Z_BB + BT;                    // board top
-TALLEST = 14.29;                     // RJ45 body top above board (measured)
+TALLEST = 12.59;                     // RJ45 body top above board (measured)
 CEIL = Z_BT + TALLEST + 0.8;         // lid underside
 TOP = CEIL + T;                      // lid top
 HOLES = [[3.5, -3.5], [71.5, -3.5], [3.5, -46.5], [71.5, -46.5]];
 BOSS_D = 8.0; SCREW_D = 3.4; HEAD_D = 6.0; HEAD_H = 2.5;
 PILOT_D = 2.6;                       // M3 self-tapping; 4.0 for a heat-set insert
 
-// RJ45 body, measured: x 11.35..28.65, face at y -0.25, top 14.29
-JACK = [11.35, 28.65]; JACK_CL = 0.6;
+// RJ45 right-angle body (TE 5555164 model), measured: x 12.28..27.72, plug face flush with
+// the board edge at y 0, top 12.59. Its plug cavity is open at the face from 1 to 10 mm.
+JACK = [12.28, 27.72]; JACK_CL = 0.6;
 // USB-C: receptacle centred on y -22.0, measured z 0.59..4.86 above board top.
 // Window sized for a USB-C overmold (12.35 x 6.5 max) so the plug seats fully.
 USB_Y = -22.0; USB_ZC = (0.59 + 4.86) / 2; USB_W = 13.0; USB_H = 7.5;
@@ -33,8 +34,8 @@ USB_Y = -22.0; USB_ZC = (0.59 + 4.86) / 2; USB_W = 13.0; USB_H = 7.5;
 PAD = [59.4, 74.4, -27.5, -12.5]; PAD_M = 1.0;
 // indicator LEDs: board y -41, x per channel; tubes stop above the measured 2.69 mm
 LED_Y = -41.0;
-LED_X = [for (i = [0:9]) 9.0 + 5.5 * i];
-LED_LBL = ["P", "1", "2", "3", "4", "5", "6", "7", "8", "S"];
+LED_X = [for (i = [0:8]) 9.0 + 5.5 * i];
+LED_LBL = ["P", "1", "2", "3", "4", "5", "6", "7", "8"];
 TUBE_ID = 3.2; TUBE_OD = 5.0; TUBE_GAP = 2.69 + 0.5;
 
 module outer(z0, z1, r = 3) {
@@ -96,7 +97,7 @@ module lid() {
         }
         for (x = LED_X) translate([x, LED_Y, Z_BT]) cylinder(d = TUBE_ID, h = TOP);
         // channel labels and title, debossed 0.6 mm into the lid top
-        for (i = [0:9]) translate([LED_X[i], LED_Y + 4.6, TOP - 0.6])
+        for (i = [0:8]) translate([LED_X[i], LED_Y + 4.6, TOP - 0.6])
             linear_extrude(1) text(LED_LBL[i], size = 3.2, halign = "center", valign = "center",
                                    font = "Liberation Sans:style=Bold");
         for (l = [["RJ45", -16], ["MAPPER", -24]]) translate([44, l[1], TOP - 0.6]) linear_extrude(1)
@@ -117,6 +118,17 @@ else if (part == "assembly") {
     color("dimgray") base();
     color("green") board();
     color("lightsteelblue", 0.45) lid();
+}
+else if (part == "assembly_closed") {
+    color("dimgray") base();
+    color("green") board();
+    color("lightsteelblue") lid();
+}
+else if (part == "jack_view") {
+    color("dimgray") base();
+    color("lightsteelblue") lid();
+    color("green") translate([0, 0, Z_BT]) import("../build/board-only.stl", convexity = 4);
+    color([0.12, 0.12, 0.12]) translate([0, 0, Z_BT]) import("../build/jack.stl", convexity = 6);
 }
 else if (part == "section_jack") intersection() {
     union() { color("dimgray") base(); color("green") board(); color("lightsteelblue") lid(); }

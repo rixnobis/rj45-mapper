@@ -4,8 +4,7 @@
 ERC passes a label-based schematic with a wrong pin number, so this is the gate
 that says jack pin n reaches ULN input n, ULN output n reaches LED n, and so on.
 ULN2803A pins checked against the UTC and UMW datasheets: IN n = pin n,
-OUT n = pin 19-n, GND = 9, COM = 10. MMBT3904 SOT-23: 1 B, 2 E, 3 C.
-Exits 1 on any mismatch; prints the count of checks run.
+OUT n = pin 19-n, GND = 9, COM = 10. Exits 1 on any mismatch; prints the count of checks run.
 """
 import subprocess
 import sys
@@ -38,9 +37,6 @@ expect += [
     ([("J2", "B5"), ("R12", "1")], None), ([("R12", "2")], "/GND"),
     ([("R10", "1")], "/5V"), ([("R10", "2"), ("PAD1", "1")], None),
     ([("R9", "1")], "/5V"), ([("R9", "2"), ("D9", "2")], None), ([("D9", "1")], "/GND"),
-    ([("J1", "SH"), ("R13", "1")], None), ([("R13", "2"), ("R14", "1"), ("Q1", "1")], None),
-    ([("R14", "2"), ("Q1", "2")], "/GND"), ([("Q1", "3"), ("D10", "1")], None),
-    ([("D10", "2"), ("R15", "2")], None), ([("R15", "1")], "/5V"),
 ]
 bad = 0
 for group, name in expect:
@@ -52,9 +48,9 @@ for group, name in expect:
 if net_of.get(("J2", "A5")) == net_of.get(("J2", "B5")):
     print("MISMATCH CC1 and CC2 share a net")
     bad += 1
-# the shield must not be grounded, or the S channel can never light
-if net_of.get(("J1", "SH")) in ("/GND", "/5V"):
-    print("MISMATCH jack shield tied to a rail")
+# the jack has no shield in this revision: no part may carry an SH pin
+if any(ref == "J1" and pin == "SH" for ref, pin in net_of):
+    print("MISMATCH J1 has a shield pin; rev A2 uses an unshielded jack")
     bad += 1
 print(f"check_netlist: {len(expect) + 2} checks, {bad} mismatches")
 sys.exit(1 if bad else 0)

@@ -69,8 +69,7 @@ LIBID = {
     "ULN2803A": "Transistor_Array:ULN2803A",
     "LED": "Device:LED",
     "R": "Device:R",
-    "8P8C_Shielded": "Connector:8P8C_Shielded",
-    "Q_NPN_BEC": "Transistor_BJT:Q_NPN_BEC",
+    "8P8C": "Connector:8P8C",
     "Conn_01x01": "Connector_Generic:Conn_01x01",
     "MountingHole": "Mechanical:MountingHole",
     "PWR_FLAG": "power:PWR_FLAG",
@@ -80,8 +79,7 @@ LIBS = {
     "ULN2803A": extract_symbol("Transistor_Array", "ULN2803A"),
     "LED": extract_symbol("Device", "LED"),
     "R": extract_symbol("Device", "R"),
-    "8P8C_Shielded": extract_symbol("Connector", "8P8C_Shielded"),
-    "Q_NPN_BEC": extract_symbol("Transistor_BJT", "Q_NPN_BEC"),
+    "8P8C": extract_symbol("Connector", "8P8C"),
     "Conn_01x01": extract_symbol("Connector_Generic", "Conn_01x01"),
     "MountingHole": extract_symbol("Mechanical", "MountingHole"),
     "PWR_FLAG": extract_symbol("power", "PWR_FLAG"),
@@ -216,8 +214,7 @@ F_USBC = "Connector_USB:USB_C_Receptacle_GCT_USB4125-xx-x_6P_TopMnt_Horizontal"
 F_ULN = "Package_SO:SOIC-18W_7.5x11.6mm_P1.27mm"
 F_LED = "LED_SMD:LED_1206_3216Metric"
 F_R = "Resistor_SMD:R_0805_2012Metric"
-F_RJ = "rj45-mapper:RJ45_RCH_RC01937"   # stock footprint, model from LCSC, aligned
-F_SOT = "Package_TO_SOT_SMD:SOT-23"
+F_RJ = "rj45-mapper:RJ45_8P8C_RightAngle"   # Pixel's drawing; he supplies the jack
 F_PAD = "rj45-mapper:ProbePad_15x15"
 F_MH = "MountingHole:MountingHole_3.2mm_M3"
 
@@ -227,10 +224,6 @@ LCSC_R51K = "C27834"
 LCSC_LED = "C84270"
 LCSC_ULN = "C845537"
 LCSC_USBC = "C3151650"
-LCSC_RJ = "C708652"
-LCSC_R27K = "C17530"
-LCSC_R10K = "C17414"
-LCSC_NPN = "C20526"
 
 
 def lc(code):
@@ -239,21 +232,7 @@ def lc(code):
 
 # ---- schematic layout (label-based; positions chosen for a legible PDF) ----
 # RJ45 jack, inputs to the ULN
-jn = {str(n): f"IN{n}" for n in range(1, 9)}
-jn["SH"] = "SHLD"
-place("8P8C_Shielded", "J1", "RC01937", F_RJ, 38.1, 50.8, jn, fields_extra=lc(LCSC_RJ))
-
-# 9th channel: the jack shield, through a discrete NPN (same input shape as a ULN channel)
-place("R", "R13", "2.7k", F_R, 63.5, 101.6, {"1": "SHLD", "2": "QB"}, angle=90,
-      fields_extra=lc(LCSC_R27K))
-place("R", "R14", "10k", F_R, 76.2, 109.22, {"1": "QB", "2": "GND"},
-      fields_extra=lc(LCSC_R10K))
-place("Q_NPN_BEC", "Q1", "MMBT3904", F_SOT, 88.9, 101.6, {"1": "QB", "2": "GND", "3": "OS"},
-      fields_extra=lc(LCSC_NPN))
-place("R", "R15", "330", F_R, 127.0, 121.92, {"1": "5V", "2": "LEDAS"}, angle=90,
-      fields_extra=lc(LCSC_R330))
-place("LED", "D10", "RED", F_LED, 147.32, 121.92, {"2": "LEDAS", "1": "OS"},
-      fields_extra=lc(LCSC_LED))
+place("8P8C", "J1", "TE 5555164-1 or equal, RA unshielded", F_RJ, 38.1, 50.8, {str(n): f"IN{n}" for n in range(1, 9)})
 
 # ULN2803A: in1..in8 = IN1..IN8, out On on pins 18..11, pin9 GND, pin10 COM=5V
 uln_nets = {str(n): f"IN{n}" for n in range(1, 9)}
@@ -302,12 +281,12 @@ for i in range(4):
 text("RJ45 CABLE MAPPER  rev A  rixnobis", 25.4, 15.24, 2.54)
 text("Touch a flying wire to PAD1; the LED for its 8P8C pin lights. ULN2803A sinks each\\n"
      "LED. PAD at 5V through 1k, so a wire grounded at the far end draws 5 mA, not a short.\\n"
-     "A finger bridging pad and wire (~1 Mohm) leaves the ULN input far below its ~2.7 V on\\n"
-     "threshold, so only metal-to-metal contact lights an LED. Two shorted wires light two.",
+     "A finger bridging pad and wire (~1 Mohm) holds the ULN input under 0.1 V, far below the\\n"
+     "two-VBE turn-on, so only metal-to-metal contact lights an LED. Two shorted wires light two.",
      25.4, 19.0, 1.27)
-text("RJ45 jack (RCH RC01937, LCSC C708652) is the only through-hole part, hand-soldered.\\n"
-     "Everything else is SMD, JLC-assembled. The jack is shielded, so its shell is a 9th\\n"
-     "channel (Q1, LED S): a shielded cable's drain wire lights S.",
+text("The RJ45 jack is the only through-hole part: an unshielded right-angle 8P8C on the\\n"
+     "TE 5555164 / Amphenol 54602 land pattern, supplied and hand-soldered by the builder.\\n"
+     "Everything else is SMD, JLC-assembled.",
      127.0, 134.62, 1.27)
 
 lib_symbols = "\n".join("\t\t" + LIBS[k][0].replace("\n", "\n\t") for k in LIBS)

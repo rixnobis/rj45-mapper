@@ -42,8 +42,8 @@ env["TUBE_GAP"] = eval(num("TUBE_GAP"))
 JACK = eval(num("JACK"))
 PAD = eval(num("PAD"))
 HOLES = eval(num("HOLES"))
-LED_X = [9.0 + 5.5 * i for i in range(10)]
-assert "LED_X = [for (i = [0:9]) 9.0 + 5.5 * i];" in src, "LED_X changed in case.scad"
+LED_X = [9.0 + 5.5 * i for i in range(9)]
+assert "LED_X = [for (i = [0:8]) 9.0 + 5.5 * i];" in src, "LED_X changed in case.scad"
 g = type("G", (), env)
 
 # components only: the board body touches the standoffs and bosses by design
@@ -108,4 +108,80 @@ for s, ps in hits.items():
     xs, ys, zs = zip(*ps)
     print(f"  COLLISION {s}: {len(ps)} points, x {min(xs):.2f}..{max(xs):.2f} "
           f"y {min(ys):.2f}..{max(ys):.2f} z {min(zs):.2f}..{max(zs):.2f}")
-sys.exit(1 if hits else 0)
+
+# Plug reachability: an RJ45 plug body (11.7 x 6.8 mm, +0.15 mm) must slide in from outside
+# the case to 3 mm inside the jack face, through free space in the case AND through the
+# jack's own cavity. The cavity arm reads the jack MODEL, so a jack whose opening is not
+# at the board edge (a top-entry part) fails here even when every body clearance passes.
+PLUG_W = 11.7 + 0.3
+# the model's cavity at the face is clear from z 2.9 (floor lip) to 10.0 (roof) above the board
+PLUG_Z0 = float(sys.argv[2]) if len(sys.argv) > 2 else 3.0      # above board top
+PLUG_Z1 = PLUG_Z0 + 6.8
+jstl = ROOT / "build" / "jack.stl"
+subprocess.run(["kicad-cli", "pcb", "export", "stl", "--subst-models", "--force", "--no-board-body",
+                "--component-filter", "J1", "--user-origin", "100x100mm", "-o", str(jstl),
+                str(ROOT / "rj45-mapper.kicad_pcb")], check=True, capture_output=True)
+jack = re.findall(rb"vertex\s+(\S+)\s+(\S+)\s+(\S+)", jstl.read_bytes())
+jv = [(float(x), -float(y), float(z)) for x, y, z in jack]     # K = board y, down positive
+if len(jv) < 300:
+    print("CANNOT CHECK: jack model has", len(jv), "vertices")
+    sys.exit(2)
+# the plug axis comes from the jack MODEL, never from case.scad, so a cutout in the wrong
+# place cannot carry the probe along with it
+PLUG_X = (min(p[0] for p in jv) + max(p[0] for p in jv)) / 2
+# Rays, not vertices: a flat face carries vertices only at its corners, so a vertex test
+# reads a closed face as an open cavity. Each ray runs along +K from outside the north wall
+# and must reach 3 mm past the jack face before it meets any jack triangle.
+tris = [jv[k:k + 3] for k in range(0, len(jv) - 2, 3)]
+
+
+def first_hit(o, d):
+    best = None
+    for a, b, c in tris:
+        e1 = [b[k] - a[k] for k in range(3)]
+        e2 = [c[k] - a[k] for k in range(3)]
+        p = [d[1] * e2[2] - d[2] * e2[1], d[2] * e2[0] - d[0] * e2[2], d[0] * e2[1] - d[1] * e2[0]]
+        det = sum(e1[k] * p[k] for k in range(3))
+        if abs(det) < 1e-12:
+            continue
+        t0 = [o[k] - a[k] for k in range(3)]
+        u = sum(t0[k] * p[k] for k in range(3)) / det
+        if u < 0 or u > 1:
+            continue
+        q = [t0[1] * e1[2] - t0[2] * e1[1], t0[2] * e1[0] - t0[0] * e1[2], t0[0] * e1[1] - t0[1] * e1[0]]
+        w = sum(d[k] * q[k] for k in range(3)) / det
+        if w < 0 or u + w > 1:
+            continue
+        t = sum(e2[k] * q[k] for k in range(3)) / det
+        if t > 0 and (best is None or t < best):
+            best = t
+    return best
+
+
+K0 = -(g.C + g.T + 2.0)
+in_plug = []
+nx, nz = 9, 6
+for ix in range(nx):
+    x = PLUG_X - PLUG_W / 2 + PLUG_W * ix / (nx - 1)
+    for iz in range(nz):
+        z = PLUG_Z0 + (PLUG_Z1 - PLUG_Z0) * iz / (nz - 1)
+        t = first_hit((x, K0, z), (0.0, 1.0, 0.0))     # jack frame: (x, K, z above board)
+        if t is not None and K0 + t < 3.0:
+            in_plug.append((round(x, 2), round(K0 + t, 2), round(z, 2)))
+probe_hits = {}
+step = 0.5
+y = -(g.C + g.T + 2.0)                    # start outside the north wall (case frame y = -K)
+while y <= 3.0:
+    x = PLUG_X - PLUG_W / 2
+    while x <= PLUG_X + PLUG_W / 2:
+        z = PLUG_Z0
+        while z <= PLUG_Z1:
+            s = solid(x, -y, g.Z_BT + z)
+            if s:
+                probe_hits[s] = probe_hits.get(s, 0) + 1
+            z += step
+        x += step
+    y += step
+print(f"plug probe at x {PLUG_X:.2f}: {len(in_plug)} of {nx * nz} plug-path rays blocked by the jack before 3 mm; "
+      f"case solids in the path: {probe_hits or 'none'}")
+sys.exit(1 if hits or in_plug or probe_hits else 0)

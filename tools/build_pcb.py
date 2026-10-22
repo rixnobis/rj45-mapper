@@ -26,14 +26,17 @@ OX, OY = 100.0, 100.0
 W, H = 75.0, 50.0
 EDGE = 0.3                     # copper-free margin from the board edge (JLC)
 
-# Jack: RCH RC01937 rotated 180 so its mating face sits on the top edge.
-# Footprint origin is pin 1; the courtyard runs 13.145 mm past it toward the face.
-J1_X, J1_Y = 24.445, 13.0
+# Jack: right-angle 8P8C on Pixel's drawing (TE 5555164 / Amphenol 54602 pattern), rotated
+# 180 so its plug face sits on the top edge. Footprint origin is pin 1; on that drawing
+# family the face is 7.87 mm past the peg line (TE 5555165 customer drawing), i.e. 14.22 mm
+# past pin 1. JACK_FACE is that distance; the 3D model check in place() asserts it.
+JACK_FACE = 6.35 + 7.87
+J1_X, J1_Y = 24.445, JACK_FACE
 # ULN2803A SOIC-18W rotated 270: inputs 1..9 along the top row, right to left, so
 # input n sits directly under jack pin n (both at 1.27 mm pitch, pin 1 rightmost).
 U1_X, U1_Y = J1_X - 5.08, 27.0
 LED_Y, LEDR_Y = 41.0, 45.0
-LED_X = [9.0 + 5.5 * i for i in range(10)]   # PWR, 1..8, S
+LED_X = [9.0 + 5.5 * i for i in range(9)]    # PWR, 1..8
 ANODE_DX = 1.4                               # LED_1206 pad 2 (anode) offset
 R_DX = 0.9125                                # R_0805 pad offset
 BUS_Y = 48.3                                 # 5V bus under the resistor row
@@ -43,7 +46,6 @@ ROW_Y0, ROW_DY = 33.6, 0.8                   # B.Cu crossover rows, ULN outputs 
 ROW_RANK = {1: 0, 6: 1, 4: 2, 5: 3, 7: 4, 8: 5, 2: 6, 3: 7}
 V5_X = 7.8                                   # B.Cu 5V riser beside the USB-C pads
 V5UP_X = 56.0                                # B.Cu 5V riser to the probe-pad resistor
-OS_X = LED_X[9] - ANODE_DX                   # S channel column (cathode of D10)
 
 PLACE = {
     "J1": (J1_X, J1_Y, 180),
@@ -51,17 +53,14 @@ PLACE = {
     "J2": (3.0, 22.0, 270),    # USB-C, mouth out of the left edge
     "R11": (9.0, 18.6, 90),    # pin 1 (CC1) at the bottom
     "R12": (9.0, 26.4, 270),   # pin 1 (CC2) at the top
-    "R13": (32.0, 3.6, 0),
-    "Q1": (36.0, 4.55, 0),     # base pad lands on y=3.6, in line with R13
-    "R14": (32.0 + R_DX, 7.0, 270),
     "R10": (V5UP_X, 18.0, 90),
     "PAD1": (W - 0.6 - 7.5, 20.0, 0),   # 15x15, 0.6 mm from the right edge
     "H1": (3.5, 3.5, 0), "H2": (W - 3.5, 3.5, 0),
     "H3": (3.5, H - 3.5, 0), "H4": (W - 3.5, H - 3.5, 0),
 }
-LEDS = ["D9"] + [f"D{i}" for i in range(1, 9)] + ["D10"]
-LEDRS = ["R9"] + [f"R{i}" for i in range(1, 9)] + ["R15"]
-for k in range(10):
+LEDS = ["D9"] + [f"D{i}" for i in range(1, 9)]
+LEDRS = ["R9"] + [f"R{i}" for i in range(1, 9)]
+for k in range(9):
     PLACE[LEDS[k]] = (LED_X[k], LED_Y, 0)
     PLACE[LEDRS[k]] = (LED_X[k] + ANODE_DX, LEDR_Y, 90)   # pin 1 (5V) at the bottom
 
@@ -227,15 +226,15 @@ def place():
     outline(board)
 
     # front silk (the case hides it; the lid carries its own labels)
-    labels = ["PWR"] + [str(i) for i in range(1, 9)] + ["S"]
+    labels = ["PWR"] + [str(i) for i in range(1, 9)]
     for x, lab in zip(LED_X, labels):
         silk(board, lab, x, LED_Y - 2.3, 1.0, thick=0.18)
     silk(board, "TOUCH WIRE HERE", PLACE["PAD1"][0], PLACE["PAD1"][1] - 8.8, 1.0, thick=0.15)
     silk(board, "5V", 9.5, 15.0, 0.9, thick=0.15)
-    silk(board, "RJ45 MAPPER  rev A", 45.0, 22.0, 1.2, thick=0.2)
+    silk(board, "RJ45 MAPPER  rev A2", 45.0, 22.0, 1.2, thick=0.2)
 
     # back silk: name, author, date, how it works
-    bl = ["RJ45 CABLE MAPPER", "Rix  rev A  2026-10-22", "",
+    bl = ["RJ45 CABLE MAPPER", "Rix  rev A2  2026-10-22", "",
           "Touch a flying wire to the", "pad; the LED for its 8P8C",
           "pin lights. Two shorted", "wires light two LEDs."]
     for i, s in enumerate(bl):
@@ -348,8 +347,7 @@ def route_hand(board, nets, padxy):
         assert r1[1] > r2[1], (r, "pin 1 must be at the bottom")
         assert pads_net(board, r, "2") == pads_net(board, d, "2"), (d, r)
         track(board, nets[pads_net(board, r, "2")], F, a, r2, SIGNAL_W)
-        if r != LEDRS[-1]:          # the last one is the bus's own end, below
-            track(board, n5, F, r1, (r1[0], BUS_Y), POWER_W)
+        track(board, n5, F, r1, (r1[0], BUS_Y), POWER_W)
         xs.append(r1)
     # PWR LED cathode -> GND via to its left
     k9 = padxy("D9", "1")
@@ -364,8 +362,9 @@ def route_hand(board, nets, padxy):
     top = min(a9[1], b9[1])
     track(board, n5, B, (V5_X, top), (V5_X, 44.5), POWER_W)
     via(board, n5, V5_X, 44.5, big=True)
-    last = xs[-1]
-    poly(board, n5, F, [(V5_X, 44.5), (V5_X, BUS_Y), (last[0], BUS_Y), last], POWER_W)
+    # the bus ends at the probe-pad riser via; every resistor tees into it
+    assert V5UP_X > max(p[0] for p in xs) + 1.0, "riser must sit past the last resistor"
+    poly(board, n5, F, [(V5_X, 44.5), (V5_X, BUS_Y), (V5UP_X, BUS_Y)], POWER_W)
     # ULN COM (pin 10) off the riser
     c10 = padxy("U1", "10")
     track(board, n5, B, (V5_X, c10[1]), (c10[0] - 1.7, c10[1]), POWER_W)
@@ -402,38 +401,6 @@ def route_hand(board, nets, padxy):
     pad = padxy("PAD1", "1")
     padnet = nets["/PAD"]
     poly(board, padnet, F, [r2, (r2[0], 16.0), (pad[0] - 6.0, 16.0)], SIGNAL_W)
-
-    # 7. shield channel: both shield tabs -> R13 -> Q1 base, R14 to GND,
-    #    emitter to GND, collector -> B.Cu -> D10 cathode
-    shl = nets["/SHLD"]
-    s1, s2 = sorted([(round(pcbnew.ToMM(q.GetPosition().x) - OX, 3),
-                      round(pcbnew.ToMM(q.GetPosition().y) - OY, 3))
-                     for q in board.FindFootprintByReference("J1").Pads() if q.GetNumber() == "SH"])
-    r13a, r13b = padxy("R13", "1"), padxy("R13", "2")
-    near((0, s1[1]), (0, r13a[1]))
-    track(board, shl, F, s1, s2, SIGNAL_W)
-    track(board, shl, F, s2, r13a, SIGNAL_W)
-    qb, qe, qc = padxy("Q1", "1"), padxy("Q1", "2"), padxy("Q1", "3")
-    near((0, qb[1]), (0, r13b[1]))
-    qbn = nets["/QB"]
-    track(board, qbn, F, r13b, qb, SIGNAL_W)
-    r14a, r14b = padxy("R14", "1"), padxy("R14", "2")
-    near((r14a[0], 0), (r13b[0], 0))
-    # R14 tees into the R13-Q1 run with a 45-degree entry, not a right angle at the pad
-    tee = (r13b[0] + 0.8, r13b[1])
-    track(board, qbn, F, r14a, (r14a[0], tee[1] + 0.8), SIGNAL_W)
-    track(board, qbn, F, (r14a[0], tee[1] + 0.8), tee, SIGNAL_W)
-    track(board, gnd, F, r14b, (r14b[0], 9.4), POWER_W)
-    via(board, gnd, r14b[0], 9.4)
-    track(board, gnd, F, qe, (qe[0], 7.3), POWER_W)
-    via(board, gnd, qe[0], 7.3)
-    os_ = nets["/OS"]
-    k10 = padxy("D10", "1")
-    track(board, os_, F, qc, (38.6, qc[1]), SIGNAL_W)
-    via(board, os_, 38.6, qc[1])
-    poly(board, os_, B, [(38.6, qc[1]), (k10[0], qc[1]), (k10[0], 39.5)], SIGNAL_W)
-    via(board, os_, k10[0], 39.5)
-    track(board, os_, F, (k10[0], 39.5), k10, SIGNAL_W)
 
 
 def pads_net(board, ref, num):
