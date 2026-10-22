@@ -31,14 +31,42 @@ assert not missing, ("missing from BOM", missing)
 PY2
 kicad-cli pcb export pos --format csv --units mm --side front --smd-only -o fab/pos.csv "$pcb" >/dev/null
 python3 - <<'PY'
-import csv
+import csv, math
+# JLC places its own (EasyEDA) model, whose origin and zero rotation can differ from the
+# KiCad footprint's. Corrections per KiCad footprint, read off the EasyEDA footprints of
+# the BOM's own LCSC parts (easyeda2kicad --footprint), and confirmed in JLC's preview:
+#   (dx, dy) = where the EasyEDA origin sits in KiCad footprint-local mm (y down),
+#   drot     = degrees added to KiCad's rotation (KiCad and JLC both count CCW).
+# SOIC-18W: EasyEDA has pin 1 bottom-left with pins 1-9 along the bottom row; KiCad has
+# pin 1 top-left down the left column, so EasyEDA = KiCad turned 90 CCW -> drot -90.
+# USB4125: EasyEDA's origin is 1.15 mm toward the SMD pads from KiCad's.
+JLC = {
+    "Package_SO:SOIC-18W_7.5x11.6mm_P1.27mm": (0.0, 0.0, -90.0),
+    "Connector_USB:USB_C_Receptacle_GCT_USB4125-xx-x_6P_TopMnt_Horizontal": (0.0, -1.15, 0.0),
+}
+fps = {}
+import re
+for m in re.finditer(r'\(footprint "([^"]+)"[\s\S]*?\(property "Reference" "([^"]+)"', open("rj45-mapper.kicad_pcb").read()):
+    fps[m.group(2)] = m.group(1)
 rows = [r for r in csv.DictReader(open("fab/pos.csv")) if not r["Ref"].startswith(("PAD", "J1"))]
 with open("fab/rj45-mapper-cpl.csv", "w", newline="") as f:
     w = csv.writer(f)
     w.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation"])
+    fixed = 0
     for r in rows:
-        w.writerow([r["Ref"], r["PosX"] + "mm", r["PosY"] + "mm", "Top", r["Rot"]])
-print(len(rows), "placements")
+        x, y, rot = float(r["PosX"]), float(r["PosY"]), float(r["Rot"])   # pos: y up
+        dx, dy, drot = JLC.get(fps.get(r["Ref"], ""), (0.0, 0.0, 0.0))
+        if (dx, dy, drot) != (0.0, 0.0, 0.0):
+            t = math.radians(rot)
+            # footprint-local (y down) -> board (y down): CCW-visual rotation by rot
+            bx = dx * math.cos(t) + dy * math.sin(t)
+            by = -dx * math.sin(t) + dy * math.cos(t)
+            x, y = x + bx, y - by                                           # pos y is up
+            rot = (rot + drot + 180.0) % 360.0 - 180.0
+            fixed += 1
+        w.writerow([r["Ref"], f"{x:.4f}mm", f"{y:.4f}mm", "Top", f"{rot:.1f}"])
+assert fixed == len([r for r in rows if fps.get(r["Ref"]) in JLC]) == 2, fixed
+print(len(rows), "placements,", fixed, "with JLC model corrections")
 PY
 rm fab/pos.csv
 kicad-cli pcb export step --subst-models --force -o fab/rj45-mapper.step "$pcb" >/dev/null
