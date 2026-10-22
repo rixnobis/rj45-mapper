@@ -34,7 +34,8 @@ python3 - <<'PY'
 import csv, math
 # JLC places its own (EasyEDA) model, whose origin and zero rotation can differ from the
 # KiCad footprint's. Corrections per KiCad footprint, read off the EasyEDA footprints of
-# the BOM's own LCSC parts (easyeda2kicad --footprint), and confirmed in JLC's preview:
+# the BOM's own LCSC parts (easyeda2kicad --footprint); both showed up wrong in JLC's
+# preview before this table existed:
 #   (dx, dy) = where the EasyEDA origin sits in KiCad footprint-local mm (y down),
 #   drot     = degrees added to KiCad's rotation (KiCad and JLC both count CCW).
 # SOIC-18W: EasyEDA has pin 1 bottom-left with pins 1-9 along the bottom row; KiCad has
