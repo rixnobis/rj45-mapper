@@ -36,7 +36,7 @@ for name in ["BW", "BH", "BT", "C", "T", "FLOOR", "STANDOFF", "TALLEST", "BOSS_D
 env["Z_BB"] = env["FLOOR"] + env["STANDOFF"]
 env["Z_BT"] = env["Z_BB"] + env["BT"]
 env["CEIL"] = env["Z_BT"] + env["TALLEST"] + 0.8
-env["TOP"] = env["CEIL"] + env["T"]
+env["TOP"] = env["CEIL"] + eval(num("TT"), {}, env)
 env["USB_ZC"] = eval(num("USB_ZC"))
 env["TUBE_GAP"] = eval(num("TUBE_GAP"))
 JACK = eval(num("JACK"))

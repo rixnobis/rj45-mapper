@@ -19,7 +19,8 @@ Z_BB = FLOOR + STANDOFF;             // board bottom
 Z_BT = Z_BB + BT;                    // board top
 TALLEST = 12.59;                     // RJ45 body top above board (measured)
 CEIL = Z_BT + TALLEST + 0.8;         // lid underside
-TOP = CEIL + T;                      // lid top
+TT = 2.6;                            // lid top: 2.0 under the 0.6 mm deboss (SLA wants >= 1.5)
+TOP = CEIL + TT;                     // lid top
 HOLES = [[3.5, -3.5], [71.5, -3.5], [3.5, -46.5], [71.5, -46.5]];
 BOSS_D = 8.0; SCREW_D = 3.4; HEAD_D = 6.0; HEAD_H = 2.5;
 PILOT_D = 2.6;                       // M3 self-tapping; 4.0 for a heat-set insert
@@ -36,7 +37,8 @@ PAD = [59.4, 74.4, -27.5, -12.5]; PAD_M = 1.0;
 LED_Y = -41.0;
 LED_X = [for (i = [0:8]) 9.0 + 5.5 * i];
 LED_LBL = ["P", "1", "2", "3", "4", "5", "6", "7", "8"];
-TUBE_ID = 3.2; TUBE_OD = 5.0; TUBE_GAP = 2.69 + 0.5;
+TUBE_ID = 3.2; TUBE_GAP = 2.69 + 0.5;
+TUBE_OD = 6.2;                       // 1.5 mm tube wall; at 5.5 mm pitch the tubes merge, 2.3 mm between bores
 
 module outer(z0, z1, r = 3) {
     translate([-C - T, -BH - C - T, z0])
@@ -100,10 +102,11 @@ module lid() {
         for (i = [0:8]) translate([LED_X[i], LED_Y + 4.6, TOP - 0.6])
             linear_extrude(1) text(LED_LBL[i], size = 3.2, halign = "center", valign = "center",
                                    font = "Liberation Sans:style=Bold");
-        for (l = [["RJ45", -16], ["MAPPER", -24]]) translate([44, l[1], TOP - 0.6]) linear_extrude(1)
+        // centred at x 32 so MAPPER (x 18.0..46.5) stays 11.9 mm clear of the probe window at x 58.4
+        for (l = [["RJ45", -16], ["MAPPER", -24]]) translate([32, l[1], TOP - 0.6]) linear_extrude(1)
             text(l[0], size = 5, halign = "center", valign = "center",
                  font = "Liberation Sans:style=Bold");
-        translate([(PAD[0] + PAD[1]) / 2, PAD[2] - PAD_M - 3.0, TOP - 0.6]) linear_extrude(1)
+        translate([(PAD[0] + PAD[1]) / 2, PAD[2] - PAD_M - 3.4, TOP - 0.6]) linear_extrude(1)
             text("TOUCH", size = 3.0, halign = "center", valign = "center",
                  font = "Liberation Sans:style=Bold");
         cutouts();
