@@ -110,6 +110,15 @@ module lid() {
             text("TOUCH", size = 3.0, halign = "center", valign = "center",
                  font = "Liberation Sans:style=Bold");
         cutouts();
+        // open each window down through the lid's bottom edge: the strip the lid would keep
+        // below it (0.57 mm under USB-C, 1.3 under the jack, 1.4 under the pad) is too thin
+        // for SLA. The base wall below the lid line is untouched.
+        translate([JACK[0] - JACK_CL, -1, Z_BB - 1])
+            cube([JACK[1] - JACK[0] + 2 * JACK_CL, C + T + 2, Z_BT - Z_BB + 1]);
+        translate([-C - T - 1, USB_Y - USB_W / 2, Z_BB - 1])
+            cube([C + T + 2, USB_W, Z_BT + USB_ZC - Z_BB + 1]);
+        translate([PAD[0] - PAD_M, PAD[2] - PAD_M, Z_BB - 1])
+            cube([BW + C + T + 1 - (PAD[0] - PAD_M), PAD[3] - PAD[2] + 2 * PAD_M, Z_BT - Z_BB + 1]);
     }
 }
 
